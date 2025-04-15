@@ -15,6 +15,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 
 #include "ABCharacterControlData.h"
+#include "HAL/MemoryBase.h"
 
 AABCharacterPlayer::AABCharacterPlayer()
 {
@@ -96,7 +97,7 @@ AABCharacterPlayer::AABCharacterPlayer()
 void AABCharacterPlayer::BeginPlay()
 {
 	Super::BeginPlay();
-
+	
 	SetCharacterControl(CurrentCharacterControlType);
 }
 
