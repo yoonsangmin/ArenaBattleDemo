@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Interface/ABAnimationAttackInterface.h"
 #include "ABCharacterBase.generated.h"
 
 UENUM()
@@ -14,7 +15,7 @@ enum class ECharacterControlType : uint8
 };
 
 UCLASS()
-class ARENABATTLEDEMO_API AABCharacterBase : public ACharacter
+class ARENABATTLEDEMO_API AABCharacterBase : public ACharacter, public IABAnimationAttackInterface
 {
 	GENERATED_BODY()
 
@@ -24,6 +25,13 @@ public:
 
 	virtual void SetCharacterControlData(const class UABCharacterControlData* InCharacterControlData);
 
+	// 공격 감지 함수 (애님 노티파이로부터 호출됨).
+	virtual void AttackHitCheck() override;
+
+	// 대미지 처리 함수.
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+	
+	// Combo Section.
 protected:
 
 	// 콤보 액션 처리 함수.
@@ -42,7 +50,16 @@ protected:
 
 	// 타이머 시간 사이에 입력이 들어왔는지 여부를 확인하는 함수.
 	void ComboCheck();
-	
+
+	// Dead Section.
+protected:
+
+	// 죽음 상태 설정 함수.
+	virtual void SetDead();
+
+	// 죽는 애니메이션 재생 함수.
+	void PlayDeadAnimation();
+
 protected:
 	UPROPERTY(EditAnywhere, Category = CharacterControl, meta = (AllowPrivateAccess = "true"))
 	TMap<ECharacterControlType, class UABCharacterControlData*> CharacterControlManager;
@@ -64,4 +81,14 @@ protected:
 	
 	// 콤보 타이머 이전에 입력이 들어왔는지를 확인하느 불리언 변수.
 	bool HasNextComboCommand = false;
+	
+	// Dead Section.
+protected:
+
+	// 죽음 몽타주 애셋.
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Animation, meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<class UAnimMontage> DeadMontage;
+
+	// 죽은 뒤에 액터를 제거하기 전까지 대기할 시간 값.
+	float DeadEventDelayTime = 5.0f;
 };

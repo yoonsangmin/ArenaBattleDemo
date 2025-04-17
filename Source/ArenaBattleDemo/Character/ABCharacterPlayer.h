@@ -25,7 +25,7 @@ public:
 
 	void SetCharacterControl(ECharacterControlType NewCharacterControlType);
 	virtual void SetCharacterControlData(const class UABCharacterControlData* InCharacterControlData) override;
-
+	
 protected:
 	void ChangeCharacterControl();							// V키에 바인딩할 함수.
 	void ShoulderMove(const FInputActionValue& Value);

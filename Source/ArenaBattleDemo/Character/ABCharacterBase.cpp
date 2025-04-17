@@ -5,12 +5,21 @@
 #include "ABCharacterControlData.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "ABComboActionData.h"
+#include "Physics/ABCollision.h"
+#include "Components/CapsuleComponent.h"
+#include "Engine/DamageEvents.h"
 
 // Sets default values
 AABCharacterBase::AABCharacterBase()
 {
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
+	// 컴포넌트 설정.
+	GetCapsuleComponent()->SetCollisionProfileName(CPROFILE_ABCAPSULE);
+	
+	// 메시의 콜리전은 NoCollision 설정 (주로 랙돌에 사용됨).
+	GetMesh()->SetCollisionProfileName(TEXT("NoCollision"));
 
 	static ConstructorHelpers::FObjectFinder<UABCharacterControlData> ShoulderDataRef(
 		TEXT("/Game/ArenaBattle/CharacterControl/ABC_Shoulder.ABC_Shoulder"));
@@ -25,6 +34,27 @@ AABCharacterBase::AABCharacterBase()
 	{
 		CharacterControlManager.Add(ECharacterControlType::Quarter, QuarterDataRef.Object);
 	}
+
+	// 콤보 액션 몽타주 에셋 설정.
+	static ConstructorHelpers::FObjectFinder<UAnimMontage> ComboActionMantageRef(TEXT("/Game/ArenaBattle/Animation/AM_ComboAttack.AM_ComboAttack"));
+	if (ComboActionMantageRef.Object)
+	{
+		ComboActionMontage = ComboActionMantageRef.Object;
+	}
+
+	// 콤보 액션 데이터 에셋 설정.
+	static ConstructorHelpers::FObjectFinder<UABComboActionData> ComboActionDataRef(TEXT("/Game/ArenaBattle/ComboAction/ABA_ComboAction.ABA_ComboAction"));
+	if (ComboActionDataRef.Object)
+	{
+		ComboActionData = ComboActionDataRef.Object;
+	}
+
+	// 죽음 몽타주 에셋 설정.
+	static ConstructorHelpers::FObjectFinder<UAnimMontage> DeadMantageRef(TEXT("/Game/ArenaBattle/Animation/AM_Dead.AM_Dead"));
+	if (DeadMantageRef.Object)
+	{
+		DeadMontage = DeadMantageRef.Object;
+	}
 }
 
 void AABCharacterBase::SetCharacterControlData(const UABCharacterControlData* InCharacterControlData)
@@ -36,6 +66,98 @@ void AABCharacterBase::SetCharacterControlData(const UABCharacterControlData* In
 	GetCharacterMovement()->bOrientRotationToMovement = InCharacterControlData->bOrientRotationToMovement;
 	GetCharacterMovement()->bUseControllerDesiredRotation = InCharacterControlData->bUseControllerDesiredRotation;
 	GetCharacterMovement()->RotationRate = InCharacterControlData->RotationRate;
+}
+
+void AABCharacterBase::AttackHitCheck()
+{
+	// 공격 판정 진행.
+	//UE_LOG(LogTemp, Log, TEXT("AttackHitCheck !!"));
+
+	// 충돌 시작 지점 계산.
+	// 캐릭터 몸통에서 약간 앞으로(캡슐의 반지름만큼) 설정.
+	FVector Start = GetActorLocation() + GetActorForwardVector() * GetCapsuleComponent()->GetScaledCapsuleRadius();
+
+	// 공격 거리.
+	constexpr float AttackRange = 50.0f;
+	FVector End = Start + GetActorForwardVector() * AttackRange;
+
+	// SCENE_QUERY_STAT: 언리얼에서 지원하는 분석 툴에 태그를 추가.
+	// 두 번째 인자: 복잡한 형태의 충돌체를 감지할지 여부.
+	// 세 번째 인자: 무시할 액터 목록.
+	FCollisionQueryParams Params(
+		SCENE_QUERY_STAT(Attack),
+		false,
+		this
+	);
+
+	// 트레이스에 사용할 구체의 반지름.
+	constexpr float AttackRadius = 50.0f;
+	
+	FHitResult OutHitResult;
+	bool HitDetected = GetWorld()->SweepSingleByChannel(
+		OutHitResult,
+		Start,
+		End,
+		FQuat::Identity,
+		CCHANNEL_ABACTION,
+		FCollisionShape::MakeSphere(AttackRadius),
+		Params
+	);
+
+	// 충돌 감지된 경우의 처리.
+	if (HitDetected)
+	{
+		// 대지미 양.
+		constexpr float AttackDamage = 30.0f;
+
+		// 대미지 이벤트.
+		FDamageEvent DamageEvent;
+		
+		// 대미지 전달.
+		OutHitResult.GetActor()->TakeDamage(
+			AttackDamage,
+			DamageEvent,
+			GetController(),
+			this
+		);
+	}
+
+	// 충돌 디버그 (시작적으로 확인할 수 있도록).
+#if ENABLE_DRAW_DEBUG
+
+	// 캡슐의 중심 위치.
+	FVector CapsuleOrigin = Start + (End - Start) * 0.5f;
+
+	// 캡슐 높이 절반 값.
+	float CapsuleHalfHeight = AttackRange * 0.5f;
+
+	// 표시할 생상 (안 맞았으면 빨강, 맞았으면 초록).
+	FColor DrawColor = HitDetected ? FColor::Green : FColor::Red;
+
+	// 캡슐 그리기.
+	DrawDebugCapsule(
+		GetWorld(),
+		CapsuleOrigin,
+		CapsuleHalfHeight,
+		AttackRadius,
+		FRotationMatrix::MakeFromZ(GetActorForwardVector()).ToQuat(),
+		DrawColor,
+		false,
+		5.0f
+	);
+	
+#endif
+}
+
+float AABCharacterBase::TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent,
+	class AController* EventInstigator, AActor* DamageCauser)
+{
+	Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	// 맞으면 바로 죽도록 처리.
+	SetDead();
+	
+	return DamageAmount;
 }
 
 void AABCharacterBase::ProcessComboCommand()
@@ -164,5 +286,32 @@ void AABCharacterBase::ComboCheck()
 			// 콤보 공격 입력 플래그 초기화.
 			HasNextComboCommand = false;
 		}
+	}
+}
+
+void AABCharacterBase::SetDead()
+{
+	// 무브먼트 컴포넌트 끄기.
+	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_None);
+
+	// 콜리전 끄기.
+	SetActorEnableCollision(false);
+
+	// 죽는 애니메이션 재생.
+	PlayDeadAnimation();
+}
+
+void AABCharacterBase::PlayDeadAnimation()
+{
+	// 몽타주 재생.
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+	if (AnimInstance)
+	{
+		// 이미 재생 중인 몽타주가 있다면, 모두 종료.
+		AnimInstance->StopAllMontages(0.0f);
+
+		// 죽음 몽타주 재생.
+		constexpr float PlayRate = 1.0f;
+		AnimInstance->Montage_Play(DeadMontage, PlayRate);
 	}
 }
