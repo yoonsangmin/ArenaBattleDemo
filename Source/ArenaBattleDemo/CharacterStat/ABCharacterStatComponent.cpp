@@ -39,7 +39,7 @@ float UABCharacterStatComponent::ApplyDamage(float InDamage)
 		// 이벤트 발행.
 		OnHpZero.Broadcast();
 	}
-	
+
 	return ActualDamage;
 }
 
