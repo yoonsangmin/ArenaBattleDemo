@@ -43,6 +43,16 @@ public:
 
 	// 이 함수는 트랜스폼뿐만 아니라, 다른 속성이 변경되는 경우에도 호출됨.
 	virtual void OnConstruction(const FTransform& Transform) override;
+
+	// Stat Section.
+public:
+
+	// CurrentStageNum에 대한 Getter/Setter.
+	FORCEINLINE int32 GetStageNum() const { return CurrentStageNum; }
+	FORCEINLINE void SetStageNum(int32 InNewStageNum)
+	{
+		CurrentStageNum = InNewStageNum;
+	}
 	
 	// Stage Section.
 protected:
@@ -155,4 +165,11 @@ protected:
 
 	// 보상 상자 생성 함수.
 	void SpawnRewardBoxes();
+
+	// Stage Stat.
+protected:
+
+	// 스테이지의 넘버를 스탯으로 관리.
+	UPROPERTY(VisibleInstanceOnly, Category = Stat, meta = (AllowPrivateAccess = "true"))
+	int32 CurrentStageNum;
 };
