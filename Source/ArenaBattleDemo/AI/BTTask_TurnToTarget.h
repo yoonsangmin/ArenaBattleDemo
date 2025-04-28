@@ -4,19 +4,20 @@
 
 #include "CoreMinimal.h"
 #include "BehaviorTree/BTTaskNode.h"
-#include "BTTask_FindPatrolPos.generated.h"
+#include "BTTask_TurnToTarget.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class ARENABATTLEDEMO_API UBTTask_FindPatrolPos : public UBTTaskNode
+class ARENABATTLEDEMO_API UBTTask_TurnToTarget : public UBTTaskNode
 {
 	GENERATED_BODY()
 
 public:
-	UBTTask_FindPatrolPos();
+	UBTTask_TurnToTarget();
 
-	// 태스크가 실행될 때 호출되는 함수.
+protected:
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	
 };
