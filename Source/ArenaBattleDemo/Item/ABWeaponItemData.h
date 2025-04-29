@@ -23,6 +23,8 @@ public:
 	// {
 	// 	return FPrimaryAssetId("ABItemData", GetFName());
 	// }
+	
+	UABWeaponItemData();
 
 public:
 	
